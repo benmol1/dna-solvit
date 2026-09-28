@@ -1,3 +1,5 @@
+import heapq
+
 
 
 roads = {"Arad":{"Zerind":75,"Sibiu":140,"Timisoara":118},
@@ -19,7 +21,7 @@ roads = {"Arad":{"Zerind":75,"Sibiu":140,"Timisoara":118},
 source = "Arad"
 destination = "Bucharest"
 
-def bfs_hops(roads, source, destination):
+def breadth_first_search(roads, source, destination):
 
     queue = [source]
     visited = {source}
@@ -54,9 +56,44 @@ def bfs_hops(roads, source, destination):
     print(f"Path: {path}, length: {length}")
 
 
+def heapq_test():
+    pq = []
+    heapq.heappush(pq, (140, "Sibiu"))
+    heapq.heappush(pq, (75, "Zerind"))
+    heapq.heappush(pq, (118, "Timisoara"))
+
+    while pq:
+        print(heapq.heappop(pq))
+
+
+def universal_cost_search(roads, source, destination):
+    pq = [(0, source)]
+    visited = set()
+    parents = {}
+    best_known = {source: 0}
+
+    while pq:
+        dist, current = heapq.heappop(pq)
+
+        if current in visited:
+            continue  # stale entry, a cheaper one already settled this city
+        visited.add(current)
+
+        if current == destination:
+            return dist, parents
+
+        for neighbour, weight in roads[current].items():
+            new_dist = dist + weight
+            if neighbour not in visited and (neighbour not in best_known or new_dist < best_known[neighbour]):
+                # ??? update best_known
+                # ??? update parents
+                # ??? push onto heap
+    return None, parents
+
+
 def main():
 
-    bfs_hops()
+    heapq_test()
 
 
 if __name__ == "__main__":
