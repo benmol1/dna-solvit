@@ -8,3 +8,6 @@ wheels/
 
 # Virtual environments
 .venv
+
+# uv.lock varies by package index (PyPI vs Artifactory across machines)
+uv.lock
