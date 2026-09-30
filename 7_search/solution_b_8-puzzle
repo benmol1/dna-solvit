@@ -1,0 +1,104 @@
+import time
+
+
+def get_neighbours(state):
+    neighbours = []
+    zero_index = state.index(0)
+    row, col = divmod(zero_index, 3)
+
+    moves = []
+    if row > 0: moves.append(-3)
+    if row < 2: moves.append(3)
+    if col > 0: moves.append(-1)
+    if col < 2: moves.append(1)
+
+    for move in moves:
+        new_index = zero_index + move
+
+        s_list = list(state)
+        s_list[zero_index], s_list[new_index] = s_list[new_index], s_list[zero_index]
+        new_state = tuple(s_list)
+
+        neighbours.append(new_state)
+
+    return neighbours
+
+def bidirectional_bfs(start, goal):
+    if start == goal:
+        return 0
+
+    node_count = 0
+    forward_visited = {start: 0}
+    backward_visited = {goal: 0}
+    forward_frontier = [start]
+    backward_frontier = [goal]
+
+    while forward_frontier and backward_frontier:
+        # expand the smaller frontier
+        if len(forward_frontier) <= len(backward_frontier):
+            frontier, visited, other_visited = forward_frontier, forward_visited, backward_visited
+        else:
+            frontier, visited, other_visited = backward_frontier, backward_visited, forward_visited
+
+        next_frontier = []
+        for state in frontier:
+            for neighbour in get_neighbours(state):
+                if neighbour not in visited:
+                    node_count += 1
+                    visited[neighbour] = visited[state] + 1
+                    # if neighbour is in other_visited, we've met in the middle
+                    if neighbour in other_visited:
+                        return visited[neighbour] + other_visited[neighbour], node_count
+                    next_frontier.append(neighbour)
+
+        # replace the frontier we expanded with next_frontier (careful: forward vs backward!)
+        frontier[:] = next_frontier
+
+    return None, node_count  # no path found
+
+
+def unidirectional_bfs(start, goal):
+    if start == goal:
+        return 0
+
+    node_count = 0
+    visited = {start: 0}
+    frontier = [start]
+
+    while frontier:
+
+        next_frontier = []
+        for state in frontier:
+            for neighbour in get_neighbours(state):
+                if neighbour not in visited:
+                    node_count += 1
+                    visited[neighbour] = visited[state] + 1
+                    # if neighbour is equal to goal we're done
+                    if neighbour == goal:
+                        return visited[neighbour], node_count
+                    next_frontier.append(neighbour)
+
+        # replace the frontier we expanded with next_frontier 
+        frontier[:] = next_frontier
+
+    return None, node_count  # no path found
+
+
+def main() -> None:
+    start = (7,2,4,5,0,6,8,3,1)
+    goal =  (0,1,2,3,4,5,6,7,8)
+    t0 = time.perf_counter()
+    result_uni, node_count_uni = unidirectional_bfs(start,goal)
+    time_uni = time.perf_counter() - t0
+
+    t0 = time.perf_counter()
+    result_bi, node_count_bi = bidirectional_bfs(start,goal)
+    time_bi = time.perf_counter() - t0
+
+    print(f"unidirectional: {result_uni}, {node_count_uni} nodes, {time_uni:.4f}s")
+    print(f"bidirectional: {result_bi}, {node_count_bi} nodes, {time_bi:.4f}s")
+    print(f"node ratio: {node_count_uni/node_count_bi:.1f}")
+    print(f"time ratio: {time_uni/time_bi:.1f}")
+
+if __name__ == "__main__":
+    main()
