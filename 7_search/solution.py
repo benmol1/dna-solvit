@@ -1,8 +1,8 @@
 import heapq
+from typing import Optional
 
 
-
-roads = {"Arad":{"Zerind":75,"Sibiu":140,"Timisoara":118},
+roads: dict[str, dict[str, int]] = {"Arad":{"Zerind":75,"Sibiu":140,"Timisoara":118},
  "Zerind":{"Arad":75,"Oradea":71}, "Oradea":{"Zerind":71,"Sibiu":151},
  "Sibiu":{"Arad":140,"Oradea":151,"Fagaras":99,"RimnicuVilcea":80},
  "Timisoara":{"Arad":118,"Lugoj":111}, "Lugoj":{"Timisoara":111,"Mehadia":70},
@@ -21,7 +21,12 @@ roads = {"Arad":{"Zerind":75,"Sibiu":140,"Timisoara":118},
 source = "Arad"
 destination = "Bucharest"
 
-def breadth_first_search(roads, source, destination):
+def breadth_first_search(
+        roads: dict[str, dict[str, int]], 
+        source: str, 
+        destination: str
+        ) -> None:
+    """Find a route from source to destination by fewest hops (BFS) and print it with its total distance."""
 
     queue = [source]
     visited = {source}
@@ -38,7 +43,10 @@ def breadth_first_search(roads, source, destination):
                 parents[neighbour] = current
                 queue.append(neighbour)
 
+    return get_path_from_parents(roads, source, destination, parents)
 
+
+def get_path_from_parents(roads, source, destination, parents):
     hop_dest = destination
     hop_source = ""
     path = []
@@ -52,11 +60,12 @@ def breadth_first_search(roads, source, destination):
 
     path.append(source)
     path.reverse()
+    return path, length
 
-    print(f"Path: {path}, length: {length}")
 
+def heapq_test() -> None:
+    """Demonstrate that heapq.heappop always returns the smallest (priority, item) tuple pushed so far."""
 
-def heapq_test():
     pq = []
     heapq.heappush(pq, (140, "Sibiu"))
     heapq.heappush(pq, (75, "Zerind"))
@@ -66,35 +75,54 @@ def heapq_test():
         print(heapq.heappop(pq))
 
 
-def universal_cost_search(roads, source, destination):
+def universal_cost_search(
+    roads: dict[str, dict[str, int]], 
+    source: str, 
+    destination: str
+    ) -> tuple[Optional[int], dict[str, str]]:
+    """Find the cheapest route from source to destination (uniform-cost search) and return (cost, parents)."""
+
+    # Initialise queue
     pq = [(0, source)]
+
+    # Initialise the set of visited cities, the parents dictionary and the best-known distance dictionary
     visited = set()
     parents = {}
     best_known = {source: 0}
 
+    # Loop over the queue, each time visiting the cheapest (shortest-distance) queue member
     while pq:
-        dist, current = heapq.heappop(pq)
+        current_distance, current_city = heapq.heappop(pq)
 
-        if current in visited:
-            continue  # stale entry, a cheaper one already settled this city
-        visited.add(current)
+        # If the current city has already been visited then skip this item in the queue 
+        # (as a cheaper path to this city will have already been found)
+        if current_city in visited:
+            continue  
+        else:
+            visited.add(current_city)
 
-        if current == destination:
-            return dist, parents
+        # If this is the destination city then exit the loop
+        if current_city == destination: break
 
-        for neighbour, weight in roads[current].items():
-            new_dist = dist + weight
-            if neighbour not in visited and (neighbour not in best_known or new_dist < best_known[neighbour]):
-                # ??? update best_known
-                # ??? update parents
-                # ??? push onto heap
-    return None, parents
+        # For each neighbour of the current city, compute the total distance via current_city.
+        for neighbour, marginal_distance in roads[current_city].items():
+            interim_total_distance = current_distance + marginal_distance
+
+            # If we haven't visited the neighbour yet and we don't already have a cheaper path, record this as the best-known path so far
+            if neighbour not in visited and (neighbour not in best_known or interim_total_distance < best_known[neighbour]):
+                # update best_known
+                best_known[neighbour] = interim_total_distance
+                # update parents
+                parents[neighbour] = current_city
+                # push onto heap
+                heapq.heappush(pq, (interim_total_distance, neighbour))
+
+    return get_path_from_parents(roads, source, destination, parents)
 
 
-def main():
-
-    heapq_test()
-
+def main() -> None:
+    path, length = universal_cost_search(roads, source, destination)
+    print (f"Path: {path} | Length: {length}")
 
 if __name__ == "__main__":
     main()
