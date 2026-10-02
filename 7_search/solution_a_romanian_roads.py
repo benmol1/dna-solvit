@@ -1,31 +1,36 @@
 import heapq
-from typing import Optional
 
-
-roads: dict[str, dict[str, int]] = {"Arad":{"Zerind":75,"Sibiu":140,"Timisoara":118},
- "Zerind":{"Arad":75,"Oradea":71}, "Oradea":{"Zerind":71,"Sibiu":151},
- "Sibiu":{"Arad":140,"Oradea":151,"Fagaras":99,"RimnicuVilcea":80},
- "Timisoara":{"Arad":118,"Lugoj":111}, "Lugoj":{"Timisoara":111,"Mehadia":70},
- "Mehadia":{"Lugoj":70,"Drobeta":75}, "Drobeta":{"Mehadia":75,"Craiova":120},
- "Craiova":{"Drobeta":120,"RimnicuVilcea":146,"Pitesti":138},
- "RimnicuVilcea":{"Sibiu":80,"Craiova":146,"Pitesti":97},
- "Fagaras":{"Sibiu":99,"Bucharest":211},
- "Pitesti":{"RimnicuVilcea":97,"Craiova":138,"Bucharest":101},
- "Bucharest":{"Fagaras":211,"Pitesti":101,"Giurgiu":90,"Urziceni":85},
- "Giurgiu":{"Bucharest":90}, "Urziceni":{"Bucharest":85,"Hirsova":98,"Vaslui":142},
- "Hirsova":{"Urziceni":98,"Eforie":86}, "Eforie":{"Hirsova":86},
- "Vaslui":{"Urziceni":142,"Iasi":92}, "Iasi":{"Vaslui":92,"Neamt":87},
- "Neamt":{"Iasi":87}}
+roads: dict[str, dict[str, int]] = {
+    "Arad": {"Zerind": 75, "Sibiu": 140, "Timisoara": 118},
+    "Zerind": {"Arad": 75, "Oradea": 71},
+    "Oradea": {"Zerind": 71, "Sibiu": 151},
+    "Sibiu": {"Arad": 140, "Oradea": 151, "Fagaras": 99, "RimnicuVilcea": 80},
+    "Timisoara": {"Arad": 118, "Lugoj": 111},
+    "Lugoj": {"Timisoara": 111, "Mehadia": 70},
+    "Mehadia": {"Lugoj": 70, "Drobeta": 75},
+    "Drobeta": {"Mehadia": 75, "Craiova": 120},
+    "Craiova": {"Drobeta": 120, "RimnicuVilcea": 146, "Pitesti": 138},
+    "RimnicuVilcea": {"Sibiu": 80, "Craiova": 146, "Pitesti": 97},
+    "Fagaras": {"Sibiu": 99, "Bucharest": 211},
+    "Pitesti": {"RimnicuVilcea": 97, "Craiova": 138, "Bucharest": 101},
+    "Bucharest": {"Fagaras": 211, "Pitesti": 101, "Giurgiu": 90, "Urziceni": 85},
+    "Giurgiu": {"Bucharest": 90},
+    "Urziceni": {"Bucharest": 85, "Hirsova": 98, "Vaslui": 142},
+    "Hirsova": {"Urziceni": 98, "Eforie": 86},
+    "Eforie": {"Hirsova": 86},
+    "Vaslui": {"Urziceni": 142, "Iasi": 92},
+    "Iasi": {"Vaslui": 92, "Neamt": 87},
+    "Neamt": {"Iasi": 87},
+}
 
 
 source = "Arad"
 destination = "Bucharest"
 
+
 def breadth_first_search(
-        roads: dict[str, dict[str, int]], 
-        source: str, 
-        destination: str
-        ) -> None:
+    roads: dict[str, dict[str, int]], source: str, destination: str
+) -> None:
     """Find a route from source to destination by fewest hops (BFS) and print it with its total distance."""
 
     queue = [source]
@@ -35,7 +40,8 @@ def breadth_first_search(
     while queue:
         current = queue.pop(0)
 
-        if current == destination: break
+        if current == destination:
+            break
 
         for neighbour in roads[current]:
             if neighbour not in visited:
@@ -76,10 +82,8 @@ def heapq_test() -> None:
 
 
 def universal_cost_search(
-    roads: dict[str, dict[str, int]], 
-    source: str, 
-    destination: str
-    ) -> tuple[Optional[int], dict[str, str]]:
+    roads: dict[str, dict[str, int]], source: str, destination: str
+) -> tuple[int | None, dict[str, str]]:
     """Find the cheapest route from source to destination (uniform-cost search) and return (cost, parents)."""
 
     # Initialise queue
@@ -94,22 +98,26 @@ def universal_cost_search(
     while pq:
         current_distance, current_city = heapq.heappop(pq)
 
-        # If the current city has already been visited then skip this item in the queue 
+        # If the current city has already been visited then skip this item in the queue
         # (as a cheaper path to this city will have already been found)
         if current_city in visited:
-            continue  
+            continue
         else:
             visited.add(current_city)
 
         # If this is the destination city then exit the loop
-        if current_city == destination: break
+        if current_city == destination:
+            break
 
         # For each neighbour of the current city, compute the total distance via current_city.
         for neighbour, marginal_distance in roads[current_city].items():
             interim_total_distance = current_distance + marginal_distance
 
             # If we haven't visited the neighbour yet and we don't already have a cheaper path, record this as the best-known path so far
-            if neighbour not in visited and (neighbour not in best_known or interim_total_distance < best_known[neighbour]):
+            if neighbour not in visited and (
+                neighbour not in best_known
+                or interim_total_distance < best_known[neighbour]
+            ):
                 # update best_known
                 best_known[neighbour] = interim_total_distance
                 # update parents
@@ -122,7 +130,8 @@ def universal_cost_search(
 
 def main() -> None:
     path, length = universal_cost_search(roads, source, destination)
-    print (f"Path: {path} | Length: {length}")
+    print(f"Path: {path} | Length: {length}")
+
 
 if __name__ == "__main__":
     main()
