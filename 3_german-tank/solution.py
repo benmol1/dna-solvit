@@ -2,6 +2,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import special
+from scipy.stats import norm
 
 
 def print_results(N, results, N_est):
@@ -44,7 +45,6 @@ def plot_posterior(N_values, posterior, median, q95_lower, q95_upper, save_path=
         alpha=0.2,
         label=f"95% CI = [{q95_lower}, {q95_upper}]",
     )
-    plt.yscale("log")
     plt.xlim(right=400)
     plt.grid(True, alpha=0.25)
     plt.xlabel("N")
@@ -81,15 +81,20 @@ def basic_simulation(k, N, num_sims, plot=False, save_path=None):
         plot_histogram(N, sample_maxima, save_path)
 
 
-def baysian(observed_serials, N_max, plot=False, save_path=None):
+def baysian(observed_serials, prior_shape="uniform", 
+            N_max=1000, plot=False, save_path=None):
 
     k = len(observed_serials)
     max_observed = np.array(observed_serials).max()
 
     # Initialise arrays
     N_values = np.arange(N_max) + 1
-    prior = np.ones_like(N_values)
     probability_observed_serials = np.zeros_like(N_values, dtype=float)
+    if prior_shape == "uniform":
+        prior = np.ones_like(N_values)
+    elif prior_shape == "normal":
+        prior = norm.pdf(N_values, loc=100, scale=20)
+    
 
     # Create a boolean mask for valid values of N (N can't possibly be less than k)
     valid = N_values >= k
@@ -122,11 +127,11 @@ def main():
     num_sims = 100_000
     observed_serials = [19, 40, 42, 60]
 
-    basic_simulation(
-        k, N_true, num_sims, plot=True, save_path="3_german-tank/simulation.png"
-    )
+    # basic_simulation(
+    #     k, N_true, num_sims, plot=True, save_path="3_german-tank/simulation.png"
+    # )
     baysian(
-        observed_serials, N_max=1000, plot=True, save_path="3_german-tank/posterior.png"
+        observed_serials, N_max=1000, prior_shape="normal", plot=True
     )
 
 
