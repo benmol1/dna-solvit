@@ -34,11 +34,26 @@
 - A list of strings already works as a 2D grid (`maze[r][c]`). Convert to a list of lists only if I want to modify cells (e.g. overlaying the path when rendering).
 - `yield` is lazy and one-shot; for at most 4 neighbours a returned list is just as good and avoids the "consumed once" trap.
 - Type hints use subscripts: `def neighbours(r: int, c: int) -> list[tuple[int, int]]:` (not `list(tuple)`).
+- `neighbours(current)` fails when `current` is a `(row, col)` tuple but the function takes two arguments. Fix: call `neighbours(*current)`, or make the function take one `pos` tuple and unpack inside.
+- Don't reuse the function's name for a local variable inside it (shadowing); use something like `result`.
+- Use `collections.deque` for the BFS queue: `deque([start])`, `queue.popleft()`, `queue.append(...)`. `list.pop(0)` shifts every element, so it's slow on big queues. Note `deque(start)` would be a bug (it iterates the tuple).
+- Rendering: strings are immutable, so `render(path, expanded)` converts each row to a list of characters, marks expanded cells (`o`) then path cells (`*`) on `.` cells only (so `S`, `G`, `#` stay visible), and joins back to strings.
+- Colour in the terminal: `rich`, `colorama` or `termcolor`, or plain ANSI escape codes (e.g. `"\033[92m" + text + "\033[0m"`), which work on Windows 11 terminals with no extra dependency. Adding a package would mean `uv add ...` and changing `pyproject.toml`.
+
+## Results so far
+- BFS finds a path of **18 steps**, matching the reference.
+- The BFS path went along row 0 to column 5, down to row 2, along to column 9, then down column 9. The route along all of row 0 and down column 9 is also 18 steps. So there are **multiple optimal paths**, and which one comes out depends on tie-breaking (neighbour order and FIFO queue order). A* may pick a different one, so compare path *length* and *expanded counts*, not exact cells.
+
+## Visited vs expanded
+- `visited` (as written) is updated when a cell is **discovered**, i.e. pushed onto the queue.
+- **Expanded** means popped from the queue and its neighbours examined.
+- When the loop stops on the goal, the queue is usually non-empty, so `visited` = expanded + the frontier at that moment. They are not the same set.
+- Open question to settle: which count is the fairer measure of "work done" when comparing BFS and A*? Either is fine if used consistently, but think about which best matches the work the search actually did. Check with `print(len(visited), len(queue))` at the end of `bfs()`.
 
 ## Next steps
-1. Finish `solution.py` scaffolding: `start`, `goal`, `neighbours`.
-2. Write `bfs()`, returning the path and the set of expanded cells. Define "expanded" once (e.g. cells popped from the queue) and use the same definition for A*.
-3. Record BFS path length (expected 18) and expanded count.
+1. Finish `solution.py` scaffolding: `start`, `goal`, `neighbours` (done).
+2. Make `bfs()` return the path and the set of expanded cells. Define "expanded" once (cells popped from the queue) and use the same definition for A*. (Basic BFS with path is done; expanded tracking still to do.)
+3. Record BFS expanded count (before running, predict it out of the 100 cells).
 4. Implement A* with `heapq`, priority `f = g + h`, h = Manhattan distance. Decide how to handle tie-breaking and cells reached by a cheaper route later.
 5. Confirm the same path length; compare expanded counts against BFS.
 6. Render both searches (expanded cells marked, path overlaid) and compare the shapes: BFS diamond vs A* narrower corridor toward G.
