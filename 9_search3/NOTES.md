@@ -2,15 +2,27 @@
 
 **Setup:** 8-puzzle with start = `(7,2,4,5,0,6,8,3,1)` and goal = `(0,1,2,3,4,5,6,7,8)` (0 is the blank). Goal: implement misplaced-tile and Manhattan heuristics, run A* with each, compare nodes expanded, verify dominance empirically, then try an inadmissible heuristic (3 × Manhattan).
 
-## Progress so far
+## Progress
 
 - [x] Admissibility: what it is and why A* needs it
 - [x] Why the blank must be excluded from both heuristics
 - [x] `md` (Manhattan) and `misplaced_tiles` implemented in `solution.py`
-- [x] Dominance argument (MD ≥ MP) and an empirical check over 1,000 random solvable states (written, not yet run at time of writing)
-- [ ] A* with each heuristic: confirm 26 moves, record nodes expanded vs BFS (~173,800)
-- [ ] Sabotage experiment: 3 × Manhattan
-- [ ] Extension: IDA*, linear conflict
+- [x] Dominance argument (MD ≥ MP) and empirical check over 1,000 random solvable states
+- [x] A* with each heuristic: both find 26 moves, nodes expanded recorded vs BFS (~173,800)
+- [x] Sabotage experiment: 3 × Manhattan returns 30 moves on the given start state
+- [ ] Extension (skipped): IDA*, linear conflict
+
+## Results
+
+| Search | Moves | Expanded | vs BFS (~173,800) |
+|---|---|---|---|
+| BFS | 26 | ~173,800 | 1× |
+| A*, misplaced tiles | 26 | 31,635 | ~5.5× fewer |
+| A*, Manhattan | 26 | 1,492 | ~116× fewer |
+| A*, 3 × Manhattan (inadmissible) | **30** | 460 | ~378× fewer |
+
+- The reference figures (≈33,100 and ≈2,000) are approximate. The exact counts depend on heap tie-breaking (here `(f, h, state)`) and on how "expanded" is defined (popped, not discovered).
+- Both admissible heuristics are optimal; Manhattan does about 21× less work than misplaced tiles. That is dominance paying off.
 
 ## Admissibility
 
@@ -39,9 +51,18 @@ Heuristic A *dominates* B if `A(s) ≥ B(s)` for every state `s`. If both are ad
 
 **Argument for MD ≥ MP:** a correctly placed tile adds 0 to both. A misplaced tile adds exactly 1 to MP and at least 1 to MD. Summing over tiles gives MD ≥ MP for every state.
 
-- The inequality is not strict: with every misplaced tile one square from home, MD = MP (the one-move state above).
+- The inequality is not strict: a tie happens exactly when every misplaced tile is one square from home (e.g. the one-move state above, or three tiles rotated around a 2×2 block).
 - Strict example: `(1,2,3,0,4,5,6,7,8)` has MP = 3, MD = 5 (tile 3 contributes distance 3).
 - One state with MD < MP would disprove dominance.
+
+**Empirical check (1,000 random solvable states, 100-step random walks from the goal):** `dominant_count` = 1000 (MD ≥ MP every time), `equal_count` = 14. So MD is strictly larger in 98.6% of states. The ties are most likely walks that ended close to the goal.
+
+## Sabotage: 3 × Manhattan
+
+- On the given start state it expanded **fewer** nodes (460 vs 1,492) but returned **30** moves, not 26. Prediction "more nodes" was wrong; "maybe still optimal" turned out to be "no".
+- Tripling `h` outweighs the cost paid so far (`g`) in `f = g + h`, so the search turns greedy: fast, but nothing guarantees the first goal popped is the cheapest.
+- One state returning the optimal length would not have shown it is safe. Overestimating only *can* produce a worse path.
+- **Why 30 and not 27–29:** the blank alternates square colour (chessboard) on every move, so every solution has the same parity. The blank starts at index 4 (centre) and ends at index 0 (corner), both with `row + col` of the matching parity, so solution lengths are all even: 26, 28, 30... The full solvability rule (permutation/inversion parity) was deliberately left for later.
 
 ## Implementation notes (`solution.py`)
 
@@ -49,17 +70,19 @@ Heuristic A *dominates* B if `A(s) ≥ B(s)` for every state `s`. If both are ad
 - `misplaced_tiles(state, include_blank=False)`: loop over `zip(state, goal)`, count positions that differ, skipping the blank unless `include_blank`. (A more compact `sum(...)` version was tried and reverted as too aggressive; the explicit loop stays.)
 - `get_neighbours(state)`: copied from the 7_search work; only adds moves that stay on the board (2 neighbours in a corner, 3 on an edge, 4 in the centre).
 - `random_solvable_state(num_moves=100)`: random walk from the goal using `get_neighbours`. Moves are reversible, so every state reached is solvable. A random walk can undo its own moves, so the state is usually closer than `num_moves` from the goal (fine here, but not for a known difficulty). `random.shuffle` is no good: half of all 9! orderings are unsolvable.
-- `assert_md_dominates_mp()`: 1,000 random solvable states, asserts `md >= mp` with the state in the failure message, prints on success.
+- `assert_md_dominates_mp()`: counts states with `md >= mp` and with `md == mp` over 1,000 random solvable states.
+- `astar_search(h_function=md)`: adapted from the 8_search2 A*. Heap entries `(f, h, state)`, `g` dict as the visited record, `parents` for path reconstruction, `expanded` set to skip stale heap entries. `get_path_from_parents` walks back from the goal.
 
 ## Gotchas
 
 - **`from numpy import random` clobbers the stdlib.** `numpy.random.choice` turns a list of equal-length tuples into a 2D array (`ValueError: a must be 1-dimensional`) and would return an `ndarray`, not a tuple. Use `import random` (stdlib), or `neighbours[np.random.randint(len(neighbours))]`.
 - **Pass `goal` consistently.** `md` and `misplaced_tiles` read the global `goal`; `random_solvable_state` now does too instead of taking it as a parameter.
 - **Bare `assert` is silent on success and anonymous on failure**, so print a message and include the offending state in the assert message.
+- **Expand `current`, not the global `state`.** `get_neighbours(state)` inside A* kept expanding the start's neighbours, so the goal was never reached and `get_path_from_parents` failed (probably a `KeyError`) at the call site, far from the real bug.
+- **Don't pass `goal` into `md`.** `h_function(neighbour, goal)` silently bound `goal` to `include_blank`, turning on the inadmissible version. It doesn't crash; it just gives the wrong heuristic.
 
-## Open questions / next steps
+## Open questions / not done
 
-- What proportion of the 1,000 random states have MD > MP *strictly*? (No prediction yet. Worth counting.)
-- Run A* with both heuristics on the given start state; expect 26 moves, about 33,100 expanded for MP and about 2,000 for MD, against about 173,800 for BFS.
-- Sabotage: 3 × Manhattan. Faster? Still optimal? Find a start state where it returns a longer-than-optimal solution.
-- Extension: IDA* (linear memory), then linear conflict (+2 per reversed pair in goal row/column) and check it stays admissible.
+- Extension: IDA* (linear memory) and linear conflict (+2 per reversed pair in goal row/column; check it stays admissible). Skipped.
+- Permutation (inversion) parity, the full solvability rule. Skipped for now.
+- Weighted A* (`w × h`) is the principled version of the sabotage experiment: with `w = 3`, the cost is at most 3× optimal. Not explored here.
