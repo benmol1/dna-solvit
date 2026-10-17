@@ -14,6 +14,9 @@ Each numbered folder is one self-contained exercise:
 | [4_gradient-descent](4_gradient-descent/) | Gradient descent on a linear regression loss |
 | [5_breadth-first](5_breadth-first/) | Breadth-first search: word ladders |
 | [7_search](7_search/) | Uniform-cost search (Romania map) and bidirectional BFS (8-puzzle) |
+| [8_search2](8_search2/) | A* search (maze) |
+| [9_search3](9_search3/) | A* heuristics for the 8-puzzle |
+| [10_date-puzzle](10_date-puzzle/) | Backtracking search: A-Puzzle-A-Day calendar puzzle |
 
 Each folder contains:
 
