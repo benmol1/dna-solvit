@@ -1,9 +1,9 @@
-
-import random
 import heapq
+import random
 
-goal  = (0,1,2,3,4,5,6,7,8)
-state = (7,2,4,5,0,6,8,3,1)
+goal = (0, 1, 2, 3, 4, 5, 6, 7, 8)
+state = (7, 2, 4, 5, 0, 6, 8, 3, 1)
+
 
 def get_neighbours(state):
     neighbours = []
@@ -11,10 +11,14 @@ def get_neighbours(state):
     row, col = divmod(zero_index, 3)
 
     moves = []
-    if row > 0: moves.append(-3)
-    if row < 2: moves.append(3)
-    if col > 0: moves.append(-1)
-    if col < 2: moves.append(1)
+    if row > 0:
+        moves.append(-3)
+    if row < 2:
+        moves.append(3)
+    if col > 0:
+        moves.append(-1)
+    if col < 2:
+        moves.append(1)
 
     for move in moves:
         new_index = zero_index + move
@@ -27,6 +31,7 @@ def get_neighbours(state):
 
     return neighbours
 
+
 def random_solvable_state(num_moves=100):
 
     state = goal
@@ -36,6 +41,7 @@ def random_solvable_state(num_moves=100):
         state = choice
 
     return state
+
 
 def md(state, include_blank=False):
     total_distance = 0
@@ -53,10 +59,11 @@ def misplaced_tiles(state, include_blank=False):
     result = 0
 
     for tile, goal_tile in zip(state, goal):
-        if tile != goal_tile and (tile !=0 or include_blank):
+        if tile != goal_tile and (tile != 0 or include_blank):
             result += 1
 
     return result
+
 
 def assert_md_dominates_mp():
     dominant_count = 0
@@ -65,8 +72,10 @@ def assert_md_dominates_mp():
         random_state = random_solvable_state()
         md_value = md(random_state)
         mp_value = misplaced_tiles(random_state)
-        if md_value >= mp_value: dominant_count+=1
-        if md_value == mp_value: equal_count+=1
+        if md_value >= mp_value:
+            dominant_count += 1
+        if md_value == mp_value:
+            equal_count += 1
 
     print(f"dominant_count: {dominant_count}, equal_count: {equal_count}")
 
@@ -86,6 +95,7 @@ def get_path_from_parents(source, destination, parents):
     path.append(source)
     path.reverse()
     return path, length
+
 
 def astar_search(h_function=md):
 

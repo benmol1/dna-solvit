@@ -1,8 +1,7 @@
 import numpy as np
+import plots
 from scipy import special
 from scipy.stats import norm
-
-import plots
 
 
 def print_results(N, results, N_est):

@@ -1,6 +1,7 @@
 import sys
 import time
 from datetime import date, datetime
+
 from rich.console import Console
 from rich.text import Text
 
@@ -8,48 +9,42 @@ from rich.text import Text
 board_labels = [
     ["Jan", "Feb", "Mar", "Apr", "May", "Jun", None],
     ["Jul", "Aug", "Sep", "Oct", "Nov", "Dec", None],
-    ["1",   "2",   "3",   "4",   "5",   "6",   "7"],
-    ["8",   "9",   "10",  "11",  "12",  "13",  "14"],
-    ["15",  "16",  "17",  "18",  "19",  "20",  "21"],
-    ["22",  "23",  "24",  "25",  "26",  "27",  "28"],
-    ["29",  "30",  "31",  None,  None,  None,  None],
+    ["1", "2", "3", "4", "5", "6", "7"],
+    ["8", "9", "10", "11", "12", "13", "14"],
+    ["15", "16", "17", "18", "19", "20", "21"],
+    ["22", "23", "24", "25", "26", "27", "28"],
+    ["29", "30", "31", None, None, None, None],
 ]
 
 # The eight pieces, drawn as they lie in the photo. 41 squares in total,
 # so placing all of them on the 43-square board leaves exactly two uncovered.
 pieces = {
-    "yellow":     ["XXX",
-                   "XXX"],
-    "orange":     ["XX",
-                   "XX",
-                   "X."],
-    "sky":        [".X",
-                   "XX",
-                   ".X",
-                   ".X"],
-    "magenta":    ["XXX",
-                   "X.X"],
-    "blue":       [".XXX",
-                   "XX.."],
-    "lime":       ["..X",
-                   "XXX",
-                   "X.."],
-    "red":        ["X...",
-                   "XXXX"],
-    "green":      ["..X",
-                   "..X",
-                   "XXX"],
+    "yellow": ["XXX", "XXX"],
+    "orange": ["XX", "XX", "X."],
+    "sky": [".X", "XX", ".X", ".X"],
+    "magenta": ["XXX", "X.X"],
+    "blue": [".XXX", "XX.."],
+    "lime": ["..X", "XXX", "X.."],
+    "red": ["X...", "XXXX"],
+    "green": ["..X", "..X", "XXX"],
 }
 
 colours = {
-    "yellow": "yellow1", "orange": "dark_orange", "sky": "deep_sky_blue1",
-    "magenta": "deep_pink3", "blue": "blue3", "lime": "green1",
-    "red": "red3", "green": "spring_green4",
+    "yellow": "yellow1",
+    "orange": "dark_orange",
+    "sky": "deep_sky_blue1",
+    "magenta": "deep_pink3",
+    "blue": "blue3",
+    "lime": "green1",
+    "red": "red3",
+    "green": "spring_green4",
 }
 
 
 def cells_from_drawing(drawing):
-    return [(r, c) for r, row in enumerate(drawing) for c, ch in enumerate(row) if ch == "X"]
+    return [
+        (r, c) for r, row in enumerate(drawing) for c, ch in enumerate(row) if ch == "X"
+    ]
 
 
 def normalise(cells):
@@ -81,11 +76,15 @@ def find_label(label):
 def solve(month, day, find_all=False):
     # grid[r][c] is None for off-board squares, "date" for the squares we must leave showing,
     # "" for empty squares, and a piece name once covered
-    grid = [["" if label is not None else None for label in row] for row in board_labels]
+    grid = [
+        ["" if label is not None else None for label in row] for row in board_labels
+    ]
     for r, c in (find_label(month), find_label(str(day))):
         grid[r][c] = "date"
 
-    orientations = {name: get_orientations(cells_from_drawing(d)) for name, d in pieces.items()}
+    orientations = {
+        name: get_orientations(cells_from_drawing(d)) for name, d in pieces.items()
+    }
     unused = list(pieces)
     solutions = []
     placements = 0
@@ -121,7 +120,10 @@ def solve(month, day, find_all=False):
         for name in list(unused):
             for shape in orientations[name]:
                 anchor_r, anchor_c = shape[0]
-                cells = [(target[0] + r - anchor_r, target[1] + c - anchor_c) for r, c in shape]
+                cells = [
+                    (target[0] + r - anchor_r, target[1] + c - anchor_c)
+                    for r, c in shape
+                ]
 
                 # If the shape does not fit here, try the next orientation/shape
                 if not fits(cells):
@@ -157,7 +159,9 @@ def render(solution):
                 text.append(f"{board_labels[r][c]:^5}", style="bold white on grey11")
             else:
                 # The piece's initial as well as its colour, so it still reads without colour
-                text.append(f"  {value[0].upper()}  ", style=f"black on {colours[value]}")
+                text.append(
+                    f"  {value[0].upper()}  ", style=f"black on {colours[value]}"
+                )
         text.append("\n")
     return text
 
@@ -170,7 +174,9 @@ def parse_date(args):
         d = datetime.strptime(args[0], "%Y-%m-%d").date()
     else:
         day, month = (args[0], args[1]) if args[0].isdigit() else (args[1], args[0])
-        d = datetime.strptime(f"2024 {month[:3].title()} {int(day)}", "%Y %b %d").date()  # 2024: allow 29 Feb
+        d = datetime.strptime(
+            f"2024 {month[:3].title()} {int(day)}", "%Y %b %d"
+        ).date()  # 2024: allow 29 Feb
     return d.strftime("%b"), d.day
 
 
@@ -185,8 +191,10 @@ def main():
     elapsed = time.perf_counter() - start
 
     console = Console()
-    console.print(f"[bold]{day} {month}[/bold]: {len(solutions)} solution(s), "
-                  f"{placements:,} placements tried, {elapsed:.2f}s\n")
+    console.print(
+        f"[bold]{day} {month}[/bold]: {len(solutions)} solution(s), "
+        f"{placements:,} placements tried, {elapsed:.2f}s\n"
+    )
     if solutions:
         console.print(render(solutions[0]))
 
