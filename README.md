@@ -16,7 +16,8 @@ Each numbered folder is one self-contained exercise:
 | [7_search](7_search/) | Uniform-cost search (Romania map) and bidirectional BFS (8-puzzle) |
 | [8_search2](8_search2/) | A* search (maze) |
 | [9_search3](9_search3/) | A* heuristics for the 8-puzzle |
-| [10_date-puzzle](10_date-puzzle/) | Backtracking search: A-Puzzle-A-Day calendar puzzle |
+| [AA_MF_date-puzzle](AA_MF_date-puzzle/) | Backtracking search: A-Puzzle-A-Day calendar puzzle |
+| [10_backtracking_N-queens](10_backtracking_N-queens/) | Backtracking: counting N-Queens solutions with O(1) safety checks |
 
 Each folder contains:
 
