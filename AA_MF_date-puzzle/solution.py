@@ -88,7 +88,7 @@ def solve(month, day, find_all=False):
     orientations = {name: get_orientations(cells_from_drawing(d)) for name, d in pieces.items()}
     unused = list(pieces)
     solutions = []
-    stats = {"placements": 0}
+    placements = 0
 
     def first_empty():
         for r, row in enumerate(grid):
@@ -100,7 +100,16 @@ def solve(month, day, find_all=False):
     def fits(cells):
         return all(0 <= r < 7 and 0 <= c < 7 and grid[r][c] == "" for r, c in cells)
 
+    def place_shape(name, cells):
+        for r, c in cells:
+            grid[r][c] = name
+
+    def remove_shape(cells):
+        for r, c in cells:
+            grid[r][c] = ""
+
     def search():
+        nonlocal placements
         target = first_empty()
         if target is None:
             solutions.append([row[:] for row in grid])
@@ -113,24 +122,29 @@ def solve(month, day, find_all=False):
             for shape in orientations[name]:
                 anchor_r, anchor_c = shape[0]
                 cells = [(target[0] + r - anchor_r, target[1] + c - anchor_c) for r, c in shape]
+
+                # If the shape does not fit here, try the next orientation/shape
                 if not fits(cells):
                     continue
 
-                stats["placements"] += 1
-                for r, c in cells:
-                    grid[r][c] = name
+                # If the shape does fit here, place it on the grid
+                placements += 1
+                place_shape(name, cells)
                 unused.remove(name)
 
+                # Search for solutions on this branch given the shape we've just placed. Will only
+                # return True if there is a solution on this branch (and find_all=False)
                 if search():
                     return True
 
+                # If there is not a solution on this branch, remove the shape we just placed and
+                # try again with the next orientation/shape
+                remove_shape(cells)
                 unused.append(name)
-                for r, c in cells:
-                    grid[r][c] = ""
         return False
 
     search()
-    return solutions, stats["placements"]
+    return solutions, placements
 
 
 def render(solution):
