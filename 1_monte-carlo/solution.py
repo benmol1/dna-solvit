@@ -1,7 +1,9 @@
 from time import perf_counter
 
 import numpy as np
-from plotting import format_elapsed_time, plot_prob_k, plot_relative_simulation_error
+from plotting import plot_prob_k, plot_relative_simulation_error
+
+from dna_solvit.utils import format_elapsed_time
 
 NUM_SIMS = 100000
 NUM_SEATS = 100
