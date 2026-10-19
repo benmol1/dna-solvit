@@ -6,28 +6,45 @@ from rich.console import Console
 from rich.text import Text
 
 # The DragonFjord "A-Puzzle-A-Day" board. None marks a square outside the board.
+# fmt: off
 board_labels = [
     ["Jan", "Feb", "Mar", "Apr", "May", "Jun", None],
     ["Jul", "Aug", "Sep", "Oct", "Nov", "Dec", None],
-    ["1", "2", "3", "4", "5", "6", "7"],
-    ["8", "9", "10", "11", "12", "13", "14"],
-    ["15", "16", "17", "18", "19", "20", "21"],
-    ["22", "23", "24", "25", "26", "27", "28"],
-    ["29", "30", "31", None, None, None, None],
+    ["1",   "2",   "3",   "4",   "5",   "6",   "7"],
+    ["8",   "9",   "10",  "11",  "12",  "13",  "14"],
+    ["15",  "16",  "17",  "18",  "19",  "20",  "21"],
+    ["22",  "23",  "24",  "25",  "26",  "27",  "28"],
+    ["29",  "30",  "31",  None,  None,  None,  None],
 ]
+# fmt: on
 
 # The eight pieces, drawn as they lie in the photo. 41 squares in total,
 # so placing all of them on the 43-square board leaves exactly two uncovered.
+# fmt: off
 pieces = {
-    "yellow": ["XXX", "XXX"],
-    "orange": ["XX", "XX", "X."],
-    "sky": [".X", "XX", ".X", ".X"],
-    "magenta": ["XXX", "X.X"],
-    "blue": [".XXX", "XX.."],
-    "lime": ["..X", "XXX", "X.."],
-    "red": ["X...", "XXXX"],
-    "green": ["..X", "..X", "XXX"],
+    "yellow":     ["XXX",
+                   "XXX"],
+    "orange":     ["XX",
+                   "XX",
+                   "X."],
+    "sky":        [".X",
+                   "XX",
+                   ".X",
+                   ".X"],
+    "magenta":    ["XXX",
+                   "X.X"],
+    "blue":       [".XXX",
+                   "XX.."],
+    "lime":       ["..X",
+                   "XXX",
+                   "X.."],
+    "red":        ["X...",
+                   "XXXX"],
+    "green":      ["..X",
+                   "..X",
+                   "XXX"],
 }
+# fmt: on
 
 colours = {
     "yellow": "yellow1",
