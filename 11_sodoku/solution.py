@@ -92,70 +92,148 @@ def eliminate(candidates, cell, digit):
     return True
 
 
-def search(candidates):
-    if all(len(v) == 1 for v in candidates.values()): return candidates
-
-    unsolved = {k:v for k,v in candidates.items() if len(v) > 1}
-    cell = min(unsolved, key=lambda c: len(unsolved[c]))
-
-    for digit in candidates[cell]:
-        candidates_copy = candidates.copy()
-        if assign(candidates_copy, cell, digit):
-            result = search(candidates_copy)
-            if result: return result
-
-    return None
-
-
 peers = build_peers()
 
-def propagation_only(candidates):
-    start = time.perf_counter()
-
-    # eliminate all the possibilities that are ruled out by the starting problem
+def propagate(candidates):
     for cell, cands in candidates.items():
         if len(cands) == 1:
             for peer in peers[cell]:
                 if not eliminate(candidates, peer, cands):
                     raise ValueError(f"Contradiction at {peer}")
 
-    elapsed = time.perf_counter() - start
+def is_safe(grid, cell_index, digit):
+    r,c = divmod(cell_index,9)
+    return all(grid[pr*9 + pc] != digit for pr, pc in peers[(r,c)])      
 
-    print(f"\nPropogate and eliminate candidates. Assigned values: {count_assigned_cells(candidates)}")
-    print(f"Time elapsed: {format_elapsed_time(elapsed)}")
-    print_puzzle(to_string(candidates))
+def solve_naive_search(grid):
+    
+    guess_count = 0
 
-    return elapsed
+    def search(grid):
+        nonlocal guess_count
+    
+        next_empty_cell = grid.find("0")
+        if next_empty_cell == -1:
+            return grid
+
+        for digit in "123456789":
+            if not is_safe(grid, next_empty_cell, digit):
+                 continue   
+            
+            # place digit in grid
+            guess_count +=1
+            new_grid = grid[:next_empty_cell] + digit + grid[next_empty_cell + 1:]
+
+            result = search(new_grid)
+            if result: return result
+
+        return None
+    
+    solution = search(grid)
+
+    return solution, guess_count
 
 
-def search_only(candidates):
+def solve_naive_search_only(grid):
     start = time.perf_counter()
-    solution = search(candidates)
+    solution, guess_count = solve_naive_search(grid)
     elapsed = time.perf_counter() - start
 
-    print(f"\nSearch result. Assigned values: {count_assigned_cells(solution)}")
-    print(f"Time elapsed: {format_elapsed_time(elapsed)}")
-    print_puzzle(to_string(solution))
+    report("Naive search only", solution, elapsed, guess_count)
+
+    return elapsed, guess_count
+
+
+def solve_propagation_only(candidates):
+    start = time.perf_counter()
+
+    # eliminate all the possibilities that are ruled out by the starting problem
+    propagate(candidates)
+
+    elapsed = time.perf_counter() - start
+
+    report("Propagation only", solution=candidates, elapsed=elapsed, guess_count=0)
 
     return elapsed
+
+
+def solve_prop_then_mrv_search(candidates):
+    start = time.perf_counter()
+    propagate(candidates)
+    solution, guess_count = solve_mrv_search(candidates)
+    elapsed = time.perf_counter() - start
+
+    report("Propagation then MRV search", solution, elapsed, guess_count)
+
+    return elapsed, guess_count
+
+
+def report(title, solution, elapsed, guess_count):
+    print(f"\n{title}")
+    if solution is None:
+        print("No solution found")
+        return
+    # solution is either a grid string (naive solver) or a candidates dict
+    grid = solution if isinstance(solution, str) else to_string(solution)
+    print(f"Assigned values: {81 - grid.count('0')}")
+    print(f"Time elapsed: {format_elapsed_time(elapsed)}")
+    print(f"Guess count: {guess_count}")
+    print_puzzle(grid)
+
+
+def solve_mrv_search(candidates):
+    guess_count = 0
+
+    def search(candidates):
+        nonlocal guess_count
+        if all(len(v) == 1 for v in candidates.values()): return candidates
+
+        unsolved = {k:v for k,v in candidates.items() if len(v) > 1}
+        cell = min(unsolved, key=lambda c: len(unsolved[c]))
+
+        for digit in candidates[cell]:
+            candidates_copy = candidates.copy()
+            guess_count += 1
+            if assign(candidates_copy, cell, digit):
+                result = search(candidates_copy)
+                if result: return result
+
+        return None
+
+    solution = search(candidates)
+
+    return solution, guess_count
+
+
+def solve_mrv_search_only(candidates):
+    start = time.perf_counter()
+    solution, guess_count = solve_mrv_search(candidates)
+    elapsed = time.perf_counter() - start
+
+    report("MRV search only", solution, elapsed, guess_count)
+
+    return elapsed, guess_count
 
 
 def main():
     
-    candidates = parse(puzzle)
+    candidates_input = parse(puzzle)
+    candidates_search = candidates_input.copy()
+    candidates_propagation = candidates_input.copy()
+    candidates_mix = candidates_input.copy()
 
     print("Input puzzle:")
     print_puzzle(puzzle)
 
-    print(f"Puzzle parsed. Assigned values: {count_assigned_cells(candidates)}")
+    print(f"Puzzle parsed. Assigned values: {count_assigned_cells(candidates_input)}")
     print(f"Assigned values in puzzle: {len(puzzle.replace("0", ""))}")
 
-    search_time = search_only(candidates)
+    search_time, _ = solve_mrv_search_only(candidates_search)
+    propagation_time = solve_propagation_only(candidates_propagation)
+    mix_time, _ = solve_prop_then_mrv_search(candidates_mix)
+    naive_search_time, _ = solve_naive_search_only(puzzle)
 
-    propagation_time = propagation_only(candidates)
-
-    print(f"\nSearch / propagation time ratio: {search_time / propagation_time:.2f}")
-
+    
 
 
 if __name__ == "__main__":
