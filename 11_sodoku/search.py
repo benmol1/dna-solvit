@@ -1,4 +1,8 @@
+from pathlib import Path
+
 from sudoku_utils import peers
+
+NAIVE_TREE_PATH = Path(__file__).parent / "naive_tree.txt"
 
 
 def assign(candidates, cell, digit):
@@ -63,14 +67,16 @@ def is_safe(grid, cell_index, digit):
     return all(grid[pr * 9 + pc] != digit for pr, pc in peers[(r, c)])
 
 
-def solve_naive_search(grid):
+def solve_naive_search(grid, verbose=False):
     """Solve a grid string by plain backtracking over the first empty cell.
 
+    If verbose, the search tree is written to naive_tree.txt next to this file.
     Returns (solution, guess_count); solution is None if there is none.
     """
     guess_count = 0
+    tree_file = open(NAIVE_TREE_PATH, "w") if verbose else None
 
-    def search(grid):
+    def search(grid, depth):
         """Fill the first empty cell with each safe digit, recursing; return the solved grid or None."""
         nonlocal guess_count
 
@@ -82,17 +88,28 @@ def solve_naive_search(grid):
             if not is_safe(grid, next_empty_cell, digit):
                 continue
 
+            if tree_file:
+                # record the current node of the search tree
+                print(
+                    f"{depth:02d}: {'  ' * depth}placing {digit} at location {next_empty_cell}",
+                    file=tree_file,
+                )
+
             # place digit in grid
             guess_count += 1
             new_grid = grid[:next_empty_cell] + digit + grid[next_empty_cell + 1 :]
 
-            result = search(new_grid)
+            result = search(new_grid, depth+1)
             if result:
                 return result
 
         return None
 
-    solution = search(grid)
+    try:
+        solution = search(grid, 0)
+    finally:
+        if tree_file:
+            tree_file.close()
 
     return solution, guess_count
 

@@ -17,7 +17,7 @@ puzzle_ai_escargot = "1000070900300200080096005000053009000100800026000040003000
 def run_naive_search(grid, verbose):
     """Solve with naive backtracking, print a report, and return (elapsed, guess_count)."""
     start = time.perf_counter()
-    solution, guess_count = solve_naive_search(grid)
+    solution, guess_count = solve_naive_search(grid, verbose)
     elapsed = time.perf_counter() - start
 
     report("Naive search only", solution, elapsed, guess_count, verbose)
@@ -82,8 +82,11 @@ def main():
     mrv_search_time, mrv_guess_count = run_mrv_search(parse(puzzle), verbose)
     mix_time, mix_guess_count = run_prop_then_mrv_search(parse(puzzle), verbose)
 
-    print(f"\nEfficieny ratio of mix vs naive: {naive_guess_count:,} vs {mix_guess_count:,} " 
-          f"= {naive_guess_count/mix_guess_count:,.0f}x better")
+    if mix_guess_count:
+        print(f"\nEfficieny ratio of mix vs naive: {naive_guess_count:,} vs {mix_guess_count:,} "
+              f"= {naive_guess_count/mix_guess_count:,.0f}x better")
+    else:
+        print(f"\nMix needed no guesses (naive needed {naive_guess_count:,}), so no ratio")
 
 if __name__ == "__main__":
     main()
