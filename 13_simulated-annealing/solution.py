@@ -1,5 +1,7 @@
 import random
 import math
+import time
+from functools import partial
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
@@ -95,6 +97,36 @@ class TSP:
             tour = two_opt(tour, best_i, best_j)
         return tour
 
+    def annealing(self, tour, T0=5, cooling=1-3e-5, steps=50_000, trace=None):
+        """Simulated annealing with random 2-opt moves and geometric cooling.
+
+        A move with change delta is accepted if delta < 0, else with probability
+        exp(-delta / T). T starts at T0 and is multiplied by cooling every step.
+
+        Returns the shortest tour visited (not necessarily the final one). If
+        trace is a list, the current tour length after each step is appended to
+        it, for plotting.
+        """
+        T = T0
+        current = self.tour_length(tour)
+        best_tour, best_length = tour, current
+
+        for _ in range(steps):
+            i, j = sorted(random.sample(range(self.n), 2))
+            delta = self.two_opt_delta(tour, i, j)
+
+            if delta < 0 or random.random() < math.exp(-delta / T):
+                tour = two_opt(tour, i, j)
+                current += delta
+                if current < best_length:
+                    best_tour, best_length = tour, current
+
+            if trace is not None:
+                trace.append(current)
+            T *= cooling
+
+        return best_tour
+
     def plot_tour(self, tour, title=None, ax=None):
         """Draw a closed tour over the cities, numbering each stop.
 
@@ -127,18 +159,25 @@ class TSP:
                 assert math.isclose(clever, simple, abs_tol=1e-6), (tour, ii, jj, clever, simple)
 
 
-def plot_histogram(lengths, filename="hill_climb_hist.png", optimum=None, bins=30):
-    """Save a histogram of tour lengths to OUT_DIR/filename, marking the optimum if known."""
+def plot_histogram(results, filename, title, optimum=None, bins=30):
+    """Save overlaid histograms of final tour lengths to OUT_DIR/filename.
+
+    results maps a label (e.g. "Hill climbing") to its list of lengths. All
+    series share the same bins so they can be compared directly. The optimum,
+    if known, is marked with a dashed line.
+    """
     fig, ax = plt.subplots(figsize=(7, 4))
 
-    ax.hist(lengths, bins=bins, color="tab:blue", edgecolor="white")
+    edges = np.histogram_bin_edges(np.concatenate(list(results.values())), bins=bins)
+    for label, lengths in results.items():
+        ax.hist(lengths, bins=edges, alpha=0.6, edgecolor="white", label=label)
     if optimum is not None:
         ax.axvline(optimum, color="tab:red", linestyle="--", label=f"optimum {optimum}")
-        ax.legend()
 
     ax.set_xlabel("Final tour length")
     ax.set_ylabel("Number of runs")
-    ax.set_title(f"Hill climbing local optima ({len(lengths)} restarts)")
+    ax.set_title(title)
+    ax.legend()
 
     fig.savefig(OUT_DIR / filename, dpi=150, bbox_inches="tight")
     plt.close(fig)
@@ -151,42 +190,86 @@ def plot_tour(problem, tour, filename, title=None):
     plt.close()
 
 
-def main():
-    """Check the delta calculation, then run hill-climbing restarts on 50 random cities."""
+def plot_trace(trace, T0, cooling, filename):
+    """Save the tour length over time, with the temperature schedule beneath it.
 
-    verbose = False
-    n_trials = 100
+    trace is the current length after each annealing step. The temperature is
+    rebuilt from the schedule (T0 * cooling**step). Both panels share the step
+    axis so you can see which temperature regime each part of the trace is in.
+    """
+    steps = np.arange(len(trace))
+    temperature = T0 * cooling ** steps
+
+    fig, (ax_len, ax_temp) = plt.subplots(2, 1, sharex=True, figsize=(8, 6),
+                                          gridspec_kw={"height_ratios": [3, 1]})
+    ax_len.plot(steps, trace, linewidth=0.6)
+    ax_len.set_yscale("log")
+    ax_len.set_ylabel("Current tour length (log scale)")
+    ax_len.set_title(f"Annealing trace: start {trace[0]:.0f}, end {trace[-1]:.1f}")
+
+    ax_temp.plot(steps, temperature, color="tab:red")
+    ax_temp.set_yscale("log")
+    ax_temp.set_ylabel("Temperature T")
+    ax_temp.set_xlabel("Step")
+
+    fig.savefig(OUT_DIR / filename, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+
+def run_restarts(problem, solver, n_trials):
+    """Run solver (tour -> final tour) from n_trials random starts.
+
+    Returns (lengths, best_tour, seconds): the final length of each run, the
+    shortest tour found, and the total wall-clock time.
+    """
+    start = time.perf_counter()
+    lengths, best_tour, best_length = [], None, math.inf
+    for _ in range(n_trials):
+        final_tour = solver(problem.random_tour())
+        final_length = problem.tour_length(final_tour)
+        lengths.append(final_length)
+        if final_length < best_length:
+            best_tour, best_length = final_tour, final_length
+    return lengths, best_tour, time.perf_counter() - start
+
+
+def print_stats(label, lengths, seconds):
+    """Print summary statistics for one method's final tour lengths."""
+    arr = np.array(lengths)
+    print(f"{label:<14} min: {arr.min():.2f}  max: {arr.max():.2f}  mean: {arr.mean():.2f}  "
+          f"median: {np.median(arr):.2f}  stdev: {arr.std():.2f}  time: {seconds:.1f}s")
+
+
+def main():
+    """Compare hill climbing with annealing on 50 cities and plot an annealing trace."""
+
+    n_trials = 20
+    schedule = dict(T0=5, cooling=1 - 3e-5, steps=50_000)
 
     small = TSP(get_original_cities())
-    big = TSP(random_cities(n=50, seed=1))
+    big = TSP(random_cities(n=50, seed=2))
 
-    # Refactor safety net: the O(1) delta must agree with brute force on both instances.
-    for problem in (small, big):
-        for _ in range(20):
-            problem.check_two_opt_delta(problem.random_tour())
+    methods = {
+        "Hill climbing": big.hill_climb,
+        "Annealing": partial(big.annealing, **schedule),
+    }
 
-    lengths = []
-    best_tour = None
-    for _ in range(n_trials):
-        tour = big.random_tour()
-        final_tour = big.hill_climb(tour)
-        final_length = big.tour_length(final_tour)
-        if verbose:
-            print(f"{tour}: initial length={big.tour_length(tour):.2f}")
-            print(f"{final_tour}: final length={final_length:.2f}")
-        lengths.append(final_length)
-        if best_tour is None or final_length < big.tour_length(best_tour):
-            best_tour = final_tour
+    results, best_tours = {}, {}
+    for label, solver in methods.items():
+        lengths, best_tour, seconds = run_restarts(big, solver, n_trials)
+        results[label], best_tours[label] = lengths, best_tour
+        print_stats(label, lengths, seconds)
 
-    # Print statistics
-    arr = np.array(lengths)
-    print(f"min: {arr.min():.2f}, max: {arr.max():.2f}, mean: {arr.mean():.2f}, "
-          f"median: {np.median(arr):.2f}, stdev: {arr.std():.2f}")
-    
-    # Save plots
-    plot_histogram(lengths)
-    plot_tour(big, best_tour, "best_hill_climb_tour.png",
-                   title=f"Best hill-climb tour: {big.tour_length(best_tour):.2f}")
+    plot_histogram(results, "comparison_hist.png",
+                   title=f"Final tour length, {n_trials} restarts each (50 cities)")
+    for label, tour in best_tours.items():
+        filename = f"best_{label.lower().replace(' ', '_')}_tour.png"
+        plot_tour(big, tour, filename, title=f"Best {label.lower()} tour: {big.tour_length(tour):.2f}")
+
+    # One annealing run with its length recorded at every step
+    trace = []
+    big.annealing(big.random_tour(), trace=trace, **schedule)
+    plot_trace(trace, schedule["T0"], schedule["cooling"], "annealing_trace.png")
 
 
 if __name__ == "__main__":
