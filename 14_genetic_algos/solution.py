@@ -1,57 +1,5 @@
-weights = [
-    4,
-    11,
-    25,
-    14,
-    29,
-    29,
-    8,
-    29,
-    1,
-    3,
-    16,
-    1,
-    11,
-    14,
-    10,
-    28,
-    9,
-    25,
-    18,
-    28,
-    21,
-    25,
-    29,
-    5,
-    15,
-]
-values = [
-    59,
-    45,
-    22,
-    40,
-    1,
-    53,
-    3,
-    32,
-    2,
-    46,
-    35,
-    24,
-    35,
-    23,
-    7,
-    2,
-    41,
-    40,
-    10,
-    21,
-    25,
-    6,
-    21,
-    12,
-    52,
-]
+weights = [4, 11, 25, 14, 29, 29, 8, 29, 1, 3, 16, 1, 11, 14, 10, 28, 9, 25, 18, 28, 21, 25, 29, 5, 15]  # fmt: skip
+values = [59, 45, 22, 40, 1, 53, 3, 32, 2, 46, 35, 24, 35, 23, 7, 2, 41, 40, 10, 21, 25, 6, 21, 12, 52]  # fmt: skip
 CAPACITY = 100
 
 order = sorted(range(25), key=lambda i: values[i] / weights[i], reverse=True)
@@ -70,41 +18,29 @@ def knapsack_greedy(weights, values, capacity):
 
 def knapsack_dp(weights, values, capacity):
     """Return the best total value achievable within capacity."""
-    best = [0] * (capacity + 1)  # best[c] = ???
-    ...
+    best = [0] * (capacity + 1)
+
+    # Loop over the weight:value pairs in the item list
+    for w, v in zip(weights, values):
+        best_new = best.copy()
+
+        # Loop over all capacities
+        for c in range(1, capacity + 1):
+            # If the capacity can accomodate the weight of the current item
+            # check which is better: the previous best at this capacity (leave this item out),
+            # or the best at capacity c-w + the value of the item (put this item in)
+            if c >= w:
+                best_new[c] = max(best[c], best[c - w] + v)
+        best = best_new
+
+    # best[c] is the maximum possible knapsack value for a given capacity c
     return best[capacity]
 
 
 def random_subset_test():
     import random
 
-    weights = [
-        4,
-        11,
-        25,
-        14,
-        29,
-        29,
-        8,
-        29,
-        1,
-        3,
-        16,
-        1,
-        11,
-        14,
-        10,
-        28,
-        9,
-        25,
-        18,
-        28,
-        21,
-        25,
-        29,
-        5,
-        15,
-    ]
+    weights = [4, 11, 25, 14, 29, 29, 8, 29, 1, 3, 16, 1, 11, 14, 10, 28, 9, 25, 18, 28, 21, 25, 29, 5, 15]  # fmt: skip
 
     trials = 100_000
     ok = sum(
@@ -117,7 +53,10 @@ def main():
     # greedy = knapsack_greedy(weights, values, CAPACITY)
     # print(f"total_value: {greedy[0]}, total_weight: {greedy[1]}, item_count: {greedy[2]}")
 
-    random_subset_test()
+    # random_subset_test()
+
+    answer = knapsack_dp(weights, values, CAPACITY)
+    print(answer)
 
 
 if __name__ == "__main__":

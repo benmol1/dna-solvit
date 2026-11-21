@@ -1,6 +1,6 @@
 # Genetic Algorithms: Knapsack — Notes (in progress)
 
-**Setup:** 25 items with weights and values, capacity 100. Choose the subset with the highest total value whose weight stays within capacity. This is the **0/1 knapsack**: each item is taken whole or not at all. The DP optimum is 402, per problem.md (my own DP in `knapsack_dp` is still a stub).
+**Setup:** 25 items with weights and values, capacity 100. Choose the subset with the highest total value whose weight stays within capacity. This is the **0/1 knapsack**: each item is taken whole or not at all. The DP optimum is 402, per problem.md, and my own `knapsack_dp` now reproduces it.
 
 ## Encoding
 
@@ -25,6 +25,20 @@ Consequence: a random starting population of 100 has only about 1–2 feasible i
 
 Open design question for next time: how strong should the penalty be? Too gentle and the population drifts towards overweight bags with high value. Too harsh (e.g. fitness 0) and the ~98 infeasible individuals in generation 0 all look identical, so selection has nothing to work with.
 
+## Exact solution: DP over capacities
+
+`best[c]` = the highest total value achievable in a bag of capacity `c`, using only the items considered so far. It starts as all zeros (no items, so every bag is worth 0).
+
+For each item (w, v) and each capacity `c >= w`, there are two options:
+
+- **Leave it out:** `best[c]` (unchanged).
+- **Put it in:** `v + best[c - w]`, which is the item's value plus the best use of the leftover capacity.
+
+Take the max: `best_new[c] = max(best[c], best[c - w] + v)`. After all 25 items, `best[100]` is the optimum, **402**. The cost is O(items × capacity), compared with 2²⁵ for brute force.
+
+- **Why `best_new`:** `best[c - w]` must be the value from *before* this item, otherwise the item could be counted twice. I used a separate `best_new` list for this.
+- **Open question (not yet worked out):** updating in place instead needs `c` to loop **descending**, not ascending, for the same reason. Ascending would let the item be reused (the unbounded knapsack). My first guess was ascending, which was wrong. Worth testing on one item (w=4, v=59) to see `best[8]` come out as 118 instead of 59.
+
 ## Concepts so far
 
 - **Hill climbing** (as I've implemented it): propose a move, keep it only if it improves.
@@ -33,7 +47,7 @@ Open design question for next time: how strong should the penalty be? Too gentle
 
 ## Next
 
-1. Fill in `knapsack_dp` and check it gives 402.
+1. ~~Fill in `knapsack_dp` and check it gives 402.~~ Done.
 2. Design the fitness function (penalty vs repair).
 3. Build the GA: tournament selection, one-point crossover, per-bit mutation ~1/25, elitism of 1–2. Population 100, 200 generations, 10 runs.
 4. Ablations: no crossover, then no mutation.
