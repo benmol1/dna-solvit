@@ -39,6 +39,42 @@ Take the max: `best_new[c] = max(best[c], best[c - w] + v)`. After all 25 items,
 - **Why `best_new`:** `best[c - w]` must be the value from *before* this item, otherwise the item could be counted twice. I used a separate `best_new` list for this.
 - **Open question (not yet worked out):** updating in place instead needs `c` to loop **descending**, not ascending, for the same reason. Ascending would let the item be reused (the unbounded knapsack). My first guess was ascending, which was wrong. Worth testing on one item (w=4, v=59) to see `best[8]` come out as 118 instead of 59.
 
+## Fitness: linear penalty
+
+`fitness_linear(bits, alpha) = value - alpha * max(0, weight - CAPACITY)`. Fitness 0 for every overweight bag is too harsh because a 1 kg overweight bag and a 150 kg overweight bag look the same. Scaling the penalty with the overage fixes that.
+
+`alpha` is an **exchange rate between kg over the limit and value**. Dropping an item from an overweight bag is a net gain if `alpha` × (kg of overage it removes) is bigger than the item's value.
+
+- Break-even for a junk item (w=29, v=1) in a bag 10 kg over: `alpha ≈ 0.1`.
+- Break-even for a great item (w=4, v=59): `alpha ≈ 15` (59/4).
+- Value per kg ranges up to 24. If `alpha` exceeds the density of every item, overweight bags can never beat feasible ones. That behaves almost like the "0 for all overweight" rule (tested with `alpha = 10`).
+- A small `alpha` such as 0.5 makes overweight bags attractive: the population drifts overweight. Note that break-even is `extra_value = alpha × extra_kg`, so at `alpha = 0.5` the bag needs only *half* a value point per extra kg, not double.
+- The penalty only counts kg *over capacity*. Shedding weight beyond that earns nothing.
+
+`plot_fitness_histogram(fits, filename, title)` saves a PNG of the fitness distribution next to the script. At generation 0 most bags are infeasible, so the histogram is mostly negative or low values for large `alpha`.
+
+## GA building blocks (in `solution.py`)
+
+- **Generation:** one round of score, select parents, make children, replace the population. Run 200 of them.
+- **Tournament selection** (`tournament`): sample `k` individuals, take the best. The best individual enters a tournament with probability `k/100` and always wins it. `k = 1` is random selection (maximum diversity, no progress). `k = 100` always picks the single best (no diversity, children are clones). Typical: `k = 2` to `5`.
+- **One-point crossover** (`crossover`): `p1[:cutoff] + p2[cutoff:]`. `cutoff` of 0 or 25 copies one parent, so useful cutoffs are 1 to 24. **Currently fixed at 13, which is a known weakness:** bits 0 to 12 always travel together, so crossover can never combine bit 3 from one parent with bit 10 from another. TODO: random cutoff.
+- **Mutation** (`mutate`): flip each bit with probability 1/25. Expected flips per child = 1, and about 36% of children get none ((24/25)²⁵). It returns a new list, so parents are never modified.
+- **`make_child`:** tournament for p1, and for p2 if crossover is on, then crossover, then mutate. `use_crossover=False` means the child is just a mutated tournament winner. A boolean switch is enough for the ablation.
+- **`run_ga`:** copy the `n_elite` best individuals unchanged, then fill the rest with `make_child`. Returns best and mean fitness per generation.
+
+## First GA runs (single run each, 100 individuals, 200 generations, k=2, 2 elites)
+
+| alpha | gen 0 best | final best | final mean |
+|---|---|---|---|
+| 0.5 | 434 | 536 | 488 |
+| 2 | 293 | 406 | 354 |
+| 15 | 153 | 402 | 126 |
+
+The DP optimum is 402, so a fitness above 402 must come from an **infeasible** bag whose penalty is too small. At `alpha = 0.5` and `2` the GA is exploiting the penalty. `best_hist` stores *penalised fitness*, not packed value, so it can't tell whether the best individual is legal.
+
+- **Not yet understood:** why `alpha = 15` has a final best of exactly 402 but a mean of only 126.
+- **Needed:** track the best *feasible* value and its weight separately from penalised fitness.
+
 ## Concepts so far
 
 - **Hill climbing** (as I've implemented it): propose a move, keep it only if it improves.
@@ -48,6 +84,8 @@ Take the max: `best_new[c] = max(best[c], best[c - w] + v)`. After all 25 items,
 ## Next
 
 1. ~~Fill in `knapsack_dp` and check it gives 402.~~ Done.
-2. Design the fitness function (penalty vs repair).
-3. Build the GA: tournament selection, one-point crossover, per-bit mutation ~1/25, elitism of 1–2. Population 100, 200 generations, 10 runs.
-4. Ablations: no crossover, then no mutation.
+2. ~~Design the fitness function.~~ Penalty version done (`alpha`). Repair version (drop random items until the bag fits) not yet implemented.
+3. ~~Build the GA pieces and generation loop.~~ Done (`run_ga`). Still to do: random crossover cutoff, track best *feasible* value, plot best and mean fitness per generation, 10 runs per setting.
+4. Compare penalty against repair. Then sweep `alpha` and ask how reliably each reaches 402.
+5. Ablations: no crossover, then no mutation.
+6. Clean up: `genetic()` in `solution.py` is an unfinished stub that nothing calls.
