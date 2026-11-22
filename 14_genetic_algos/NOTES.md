@@ -75,6 +75,25 @@ The DP optimum is 402, so a fitness above 402 must come from an **infeasible** b
 - **Not yet understood:** why `alpha = 15` has a final best of exactly 402 but a mean of only 126.
 - **Needed:** track the best *feasible* value and its weight separately from penalised fitness.
 
+## Stability and ablations (alpha = 4, 20 runs per row, 100 individuals, 200 generations)
+
+`alpha = 4` was chosen after a sweep of `alpha`: 20 independent runs all ended with a final best of 402, with the final mean between about 295 and 325, so it is stable. (Caveat: "best" here is penalised fitness. I haven't yet checked that the best bag is actually feasible.)
+
+The table is the average over 20 runs per setting. `first gen at 402` is the first generation whose best fitness reaches 402.
+
+| setting | mean final best | mean final mean | mean first gen at 402 | reached 402 |
+|---|---|---|---|---|
+| baseline | 402.0 | 315.9 | 32.9 | 20/20 |
+| crossover off | 402.0 | 313.4 | 58.0 | 20/20 |
+| mutation off | 324.2 | 322.7 | none | 0/20 |
+
+- **Mutation is the ingredient that carries the search.** With mutation off, no run ever reaches 402. Final best is about equal to final mean, so the population has converged. Crossover can only reshuffle bits that already exist in the population, so a bit that is 0 in every individual can never become 1. Mutation is the only source of new variants.
+- **Crossover is a speed-up, not a necessity.** Without it, all 20 runs still reach 402, but it takes roughly twice as many generations (about 55 vs about 30), and the slow tail is longer (one run needed 196 generations). This matches problem.md's hint that selection plus mutation alone does respectably.
+- Runs are noisy. Baseline moved from 26.9 to 32.9 generations between two batches of 20, so small differences mean nothing.
+- **Caveats:** the fixed crossover cutoff of 13 limits crossover to two blocks of bits, so a random cutoff might widen the gap. The comparison is at equal generations and equal population, which means equal evaluations per generation. It does not test an equal total budget.
+
+**Biology analogy.** Crossover off is like asexual reproduction (one parent plus mutation, like a bacterium). Fewer generations needed with crossover does not by itself show asexual reproduction is worse, because cheap, fast generations could make up for it. Crossover helps by combining good chunks from different parents. In knapsack, items interact through the shared 100 kg budget, so a good chunk from one parent can go overweight when spliced onto another. That limits crossover's gain here.
+
 ## Concepts so far
 
 - **Hill climbing** (as I've implemented it): propose a move, keep it only if it improves.
@@ -85,7 +104,9 @@ The DP optimum is 402, so a fitness above 402 must come from an **infeasible** b
 
 1. ~~Fill in `knapsack_dp` and check it gives 402.~~ Done.
 2. ~~Design the fitness function.~~ Penalty version done (`alpha`). Repair version (drop random items until the bag fits) not yet implemented.
-3. ~~Build the GA pieces and generation loop.~~ Done (`run_ga`). Still to do: random crossover cutoff, track best *feasible* value, plot best and mean fitness per generation, 10 runs per setting.
-4. Compare penalty against repair. Then sweep `alpha` and ask how reliably each reaches 402.
-5. Ablations: no crossover, then no mutation.
-6. Clean up: `genetic()` in `solution.py` is an unfinished stub that nothing calls.
+3. ~~Build the GA pieces and generation loop.~~ Done (`run_ga`). Still to do: random crossover cutoff, track best *feasible* value, plot best and mean fitness per generation.
+4. ~~Ablations: no crossover, then no mutation.~~ Done (table above).
+5. Check the best individual is feasible (weight at most 100) in every run, and explain why the final mean falls as `alpha` rises.
+6. Implement repair and compare it with the penalty.
+7. Compare settings at an equal total evaluation budget.
+8. Clean up: `genetic()` in `solution.py` is an unfinished stub that nothing calls.

@@ -94,14 +94,18 @@ def mutate(bits, rate=1 / 25):
     return [1 - b if random.random() < rate else b for b in bits]
 
 
-def make_child(pop, fits, k, rate, use_crossover=True):
+def make_child(pop, fits, k, rate, use_crossover=True, use_mutation=True):
     p1 = tournament(pop, fits, k)
     if use_crossover:
         p2 = tournament(pop, fits, k)
         child = crossover(p1, p2)  # TODO: random cutoff
     else:
         child = p1.copy()
-    return mutate(child, rate)
+
+    if use_mutation:
+        return mutate(child, rate)
+    else:
+        return child
 
 
 def run_ga(
@@ -112,11 +116,12 @@ def run_ga(
     generations=200,
     n_elite=2,
     use_crossover=True,
+    use_mutation=True,
 ):
     pop = [[random.randint(0, 1) for _ in range(25)] for _ in range(pop_size)]
     best_hist, mean_hist = [], []
 
-    for gen in range(generations):
+    for _ in range(generations):
         fits = [fitness_linear(ind, alpha) for ind in pop]
         best_hist.append(max(fits))
         mean_hist.append(sum(fits) / len(fits))
@@ -126,36 +131,71 @@ def run_ga(
         new_pop = [pop[i].copy() for i in ranked[:n_elite]]
         # 2. fill the rest of the next generation with make_child(...)
         for _ in range(pop_size - n_elite):
-            new_pop.append(make_child(pop, fits, k, rate, use_crossover))
+            new_pop.append(make_child(pop, fits, k, rate, use_crossover, use_mutation))
         pop = new_pop
 
     return best_hist, mean_hist
 
 
+def print_table(rows, headers):
+    """Print rows as an aligned table. Floats are shown to 1 decimal place."""
+    cells = [[f"{x:.1f}" if isinstance(x, float) else str(x) for x in r] for r in rows]
+    widths = [max(len(h), *(len(r[i]) for r in cells)) for i, h in enumerate(headers)]
+    print(" | ".join(h.rjust(w) for h, w in zip(headers, widths)))
+    print("-+-".join("-" * w for w in widths))
+    for r in cells:
+        print(" | ".join(c.rjust(w) for c, w in zip(r, widths)))
+
+
+def first_gen_at(best_hist, target=402):
+    """Index of the first generation whose best fitness reaches target, else None."""
+    return next((g for g, b in enumerate(best_hist) if b >= target), None)
+
+
+def mean(xs):
+    return sum(xs) / len(xs)
+
+
 def main():
-    # greedy = knapsack_greedy(weights, values, CAPACITY)
-    # print(f"total_value: {greedy[0]}, total_weight: {greedy[1]}, item_count: {greedy[2]}")
+    alpha = 4
+    n_runs = 20
+    settings = [
+        ("baseline", dict(use_crossover=True)),
+        ("crossover off", dict(use_crossover=False)),
+        ("mutation off", dict(use_mutation=False)),
+    ]
+    rows = []
 
-    # random_subset_test()
+    for name, kwargs in settings:
+        finals, means, firsts = [], [], []
+        for _ in range(n_runs):
+            best_hist, mean_hist = run_ga(alpha=alpha, **kwargs)
+            finals.append(best_hist[-1])
+            means.append(mean_hist[-1])
+            first = first_gen_at(best_hist)
+            if first is not None:
+                firsts.append(first)
+        rows.append(
+            [
+                name,
+                mean(finals),
+                mean(means),
+                mean(firsts) if firsts else float("nan"),
+                f"{len(firsts)}/{n_runs}",
+            ]
+        )
 
-    # answer = knapsack_dp(weights, values, CAPACITY)
-    # print(answer)
-
-    num_items = len(values)
-    alpha = 2
-    pop = [[random.randint(0, 1) for _ in range(num_items)] for _ in range(100)]
-
-    fits = [fitness_linear(ind, alpha) for ind in pop]
-    plot_fitness_histogram(
-        fits,
-        filename=f"fitness_hist_alpha={alpha}.png",
-        title=f"Random population, alpha={alpha}",
+    print(f"alpha = {alpha}, {n_runs} runs per row")
+    print_table(
+        rows,
+        headers=[
+            "setting",
+            "mean final best",
+            "mean final mean",
+            "mean first gen at 402",
+            "reached 402",
+        ],
     )
-
-    winner = tournament(pop, fits, 2)
-    print(f"winner: {winner}")
-
-    print(crossover([1] * 25, [0] * 25, 10))
 
 
 if __name__ == "__main__":
