@@ -61,10 +61,53 @@ Converged after **44 iterations**:
 
 The order matches my prediction, made before running it: C, A, B, D, E, F.
 
+## Interpreting the result (is in-link count the whole story?)
+
+No. With d = 0.999 (almost no teleporting) the ranks were C 0.40, A 0.40, B 0.20, and D, E, F about 0.0003 or less (65 iterations).
+
+- Inside the trap A, B, C: C has two in-links from the trio and A only one, yet they tie. Every visit to C is followed by a visit to A, and from A the surfer goes to C or B with probability ½ each. That gives visit ratios A : C : B = 1 : 1 : ½, which scale to 0.4 : 0.4 : 0.2.
+- The same facts as balance conditions: A = C, B = A/2, C = A/2 + B. The steady state is the vector that the update leaves unchanged.
+- A page with no in-links still scores `(1 - d) / n` from teleporting alone. F = 0.001/6 ≈ 0.000167, as observed.
+- The tail then builds up along the chain F → E → D: E ≈ F + ½F = 1.5F and D ≈ F + ½E = 1.75F (when d is close to 1). These match the output.
+- A vote is worth more when it comes from a well-ranked page, and A's single strong in-link from C is worth more than many weak ones.
+- `problem.md` says A has "only one inbound link", but in `links` A is linked from both C and D. Only inside the trap does A have a single in-link.
+
+## Matrix form (power iteration)
+
+Build `M` with `M[p][q] = 1 / outdegree(q)` if `q` links to `p`, else 0. Each column then sums to 1 (it's a probability distribution over where the surfer goes next). The update becomes
+
+    rank = d * (M @ rank) + (1 - d) / n
+
+repeated until the change is below 1e-10. This is power iteration and gives the same ranking as the loops.
+
+Three ways to solve it in `solution.py`'s `pagerank_matrix(method=...)`:
+
+- `"power"`: iterate the update above.
+- `"inverse"`: the fixed point satisfies `(I - dM) rank = (1 - d)/n`, so solve it directly with `np.linalg.inv`. This is a linear solve, not an eigenvalue method, and I had misnamed the flag at first.
+- `"eig"`: fold the teleporting into `G = d*M + (1 - d)/n * ones`, call `np.linalg.eig`, take the eigenvector with the largest eigenvalue and divide by its sum (which also fixes the sign). Every column of `G` sums to 1, so the largest eigenvalue is exactly 1, and the other eigenvalues have magnitude at most d.
+
+## Performance (random web, n = 2,000, 5 out-links per page, d = 0.85)
+
+| method | time |
+|---|---|
+| basic dictionary loops | about 6.7 s |
+| power iteration | 9.4 ms |
+| matrix inverse | 185 ms |
+| `np.linalg.eig` | 7.48 s |
+
+What I learned:
+
+- **Building `M` can dominate.** My first version looped over all n² (row, column) pairs and did a list scan for each, which took about 700 ms and made the algorithms look as if they were close. Looping only over the actual links took about 8 ms.
+- **Time the pieces separately.** Splitting build from solve showed that the first comparison was measuring the setup, not the algorithms.
+- **Big-O hides constants.** Inversion and `eig` are both O(n³), yet `eig` was about 40× slower than the inverse. It computes all n eigenpairs of a non-symmetric matrix, with complex arithmetic, when we need one.
+- **Power iteration wins.** One step costs about n² dense (or the number of links when sparse), and the number of steps depends on d and the tolerance, not on n. The error shrinks by about a factor d per step: 44 iterations at d = 0.85 and 65 at d = 0.999.
+- **My prediction was wrong.** I expected the "eigenvalue" (inversion) method to be quickest on a large web. It is the slowest of the sensible choices.
+
+## What production systems do
+
+They use power iteration (an eigenvector method) on a **sparse** matrix. The dense `M` has n² entries, but each page has only a handful of links, so almost all of them are zero. At n = 20,000 a dense float64 matrix is 3.2 GB, and the inversion needs several copies of it. A sparse format (e.g. `scipy.sparse`) stores only the non-zeros, so memory is proportional to the number of links, and `M @ rank` costs about the number of links too. Inversion can't use sparsity, because the inverse of a sparse matrix is generally dense. I haven't implemented or timed the sparse version yet, so the time saving is an expectation, not a measurement.
+
 ## Next
 
-1. Interpret the result. Is in-link count the whole story? Compare the size of the gaps between pages with their inbound links.
-2. Rewrite the update as a single matrix–vector multiplication (a transition matrix times a probability vector) and confirm it gives the same answer. This is power iteration.
-3. Extension: check against `numpy.linalg.eig` by finding the eigenvector with eigenvalue 1 and normalising it.
-4. Extension: add a page G with no outgoing links (a **dangling page**) and fix the algorithm.
-5. When reading the solution in `problem.md`, check what it says about A's inbound links against the `links` dictionary.
+1. Switch `M` to a sparse matrix and measure memory and time on a large web.
+2. Extension: add a page G with no outgoing links (a **dangling page**) and fix the algorithm. Its column in `M` is all zeros, so the column doesn't sum to 1 and rank leaks away. The standard trick is to let G link to every page.
