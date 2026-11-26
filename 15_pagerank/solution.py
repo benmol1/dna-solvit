@@ -54,6 +54,7 @@ def pagerank_matrix(links, d=0.85, method="power", verbose=False):
     iterations = 0
 
     if method == "inverse":
+        # This is the same Markov chain steady-state maths I used in the factorio quality repo
         Q = np.eye(n) - d * M
         Q_inv = np.linalg.inv(Q)
         rank = Q_inv @ teleport_vector
